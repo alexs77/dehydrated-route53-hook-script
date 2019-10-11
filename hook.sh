@@ -34,7 +34,7 @@ deploy_challenge() {
     local DOMAIN="${1}" TOKEN_FILENAME="${2}" TOKEN_VALUE="${3}"
 
     local ZONE=$(find_zone "${DOMAIN}")
-    
+
     if [[ -n "$ZONE" ]]; then
         echo "Creating challenge record for ${DOMAIN} in zone ${ZONE}"
         cli53 rrcreate --append --wait "${ZONE}" "_acme-challenge.${DOMAIN}. 60 TXT ${TOKEN_VALUE}"
@@ -55,7 +55,7 @@ clean_challenge() {
     local DOMAIN="${1}" TOKEN_FILENAME="${2}" TOKEN_VALUE="${3}"
 
     local ZONE=$(find_zone "${DOMAIN}")
-    
+
     if [[ -n "$ZONE" ]]; then
         echo "Deleting challenge record for ${DOMAIN} from zone ${ZONE}"
         cli53 rrdelete "${ZONE}" "_acme-challenge.${DOMAIN}." TXT
@@ -133,6 +133,11 @@ function get_base_name() {
 # a 'foo.baa.com' zone will be preferred over a 'baa.com' zone
 # Returns the zone name (success) or nothing (fail)
 #
+# Modification by Alexander Skwar 2019-05-16: Prefers the
+# SHORTEST match, so that it is possible to have a split
+# brain DNS with the public entries in eg. baa.com and a
+# zone with private IPs in foo.baa.com.
+#
 function find_zone() {
   local DOMAIN="${1}"
 
@@ -141,13 +146,13 @@ function find_zone() {
   local TESTDOMAIN="${DOMAIN}"
 
   while [[ -n "$TESTDOMAIN" ]]; do
+    TESTDOMAIN=$(get_base_name "$TESTDOMAIN")
     for zone in $ZONELIST; do
       if [[ "$zone" == "$TESTDOMAIN" ]]; then
         echo "$zone"
         return 0
       fi
     done
-    TESTDOMAIN=$(get_base_name "$TESTDOMAIN")
   done
 
   return 1
